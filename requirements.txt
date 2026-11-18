@@ -4,6 +4,8 @@ langchain-community
 pypdf
 python-dotenv
 
+langchain_text_splitters
+
 Fastapi
 uvicorn
 jwt
