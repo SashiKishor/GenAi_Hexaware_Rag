@@ -7,9 +7,9 @@
 #libary did not work  
 
 #do not use
-from guardrails import Guard
+# from guardrails import Guard
 # from guardrails_ai.detect_pii import DetectPII
-from fastapi.exceptions import GuardrailTripException
+# from fastapi.exceptions import GuardrailTripException
 
 # pii_guard = Guard().use(
 #     DetectPII(
