@@ -1,2 +1,9 @@
-Fastapi
-uvicorn
+docling
+langchain-core
+langchain-community
+pypdf
+python-dotenv
+
+# Fastapi
+# uvicorn
+
