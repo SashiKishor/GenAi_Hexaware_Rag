@@ -1,5 +1,8 @@
-Fastapi
-uvicorn
-uvicorn
-jwt
-bcrypt
+docling
+langchain-core
+langchain-community
+pypdf
+python-dotenv
+
+# Fastapi
+# uvicorn
