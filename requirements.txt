@@ -13,3 +13,7 @@ Bcrypt
 presidio-analyzer
 presidio-anonymizer
 spacy
+transformers
+torch
+huggingface_hub
+safetensors
