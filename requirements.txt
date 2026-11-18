@@ -4,5 +4,7 @@ langchain-community
 pypdf
 python-dotenv
 
-# Fastapi
-# uvicorn
+Fastapi
+uvicorn
+jwt
+Bcrypt
