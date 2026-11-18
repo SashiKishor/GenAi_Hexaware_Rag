@@ -1,1 +1,3 @@
-fastapi/.env
+
+fastapi/__pycache__/__init__.cpython-314.pyc
+.gitignore
