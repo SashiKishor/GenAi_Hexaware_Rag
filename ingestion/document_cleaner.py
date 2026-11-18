@@ -3,21 +3,7 @@ import re
 import unicodedata
 import html
 from langchain_core.documents import Document
-from colorlog import ColoredFormatter
 
-handler = logging.StreamHandler()
-handler.setFormatter(ColoredFormatter(
-    "%(log_color)s%(levelname)s: %(name)s: %(message)s",
-    log_colors={
-        "DEBUG": "cyan",
-        "INFO": "green",
-        "WARNING": "yellow",
-        "ERROR": "red",
-        "CRITICAL": "bold_red",
-    }
-))
-
-logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 def clean_text(text: str) -> str:
@@ -101,17 +87,5 @@ def clean_documents(documents: list[Document]) -> list[Document]:
     return cleaned_documents
 
 
-#use this block for next process
-from pdf_loader import load_pdfs
-from text_extractor import extract_text
 
-if __name__ == "__main__":
-
-    markdown_files = load_pdfs()
-    documents = extract_text(markdown_files)
-    cleaned_documents = clean_documents(documents)
-
-    print("Total cleaned documents:", len(cleaned_documents))
-    print("Processing completed successfully!")
-
-  #  print(cleaned_documents)  
+ 
