@@ -4,8 +4,21 @@ import re
 import unicodedata
 import html
 from langchain_core.documents import Document
+from colorlog import ColoredFormatter
 
-logging.basicConfig(level=logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(ColoredFormatter(
+    "%(log_color)s%(levelname)s: %(name)s: %(message)s",
+    log_colors={
+        "DEBUG": "cyan",
+        "INFO": "green",
+        "WARNING": "yellow",
+        "ERROR": "red",
+        "CRITICAL": "bold_red",
+    }
+))
+
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 
@@ -107,4 +120,4 @@ if __name__ == "__main__":
     print("Total cleaned documents:", len(cleaned_documents))
     print("Processing completed successfully!")
 
-    print(cleaned_documents)  # Print first 500 characters of the first cleaned document
+  #  print(cleaned_documents)  
