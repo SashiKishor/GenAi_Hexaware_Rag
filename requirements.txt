@@ -1,0 +1,5 @@
+Fastapi
+uvicorn
+uvicorn
+jwt
+bcrypt
