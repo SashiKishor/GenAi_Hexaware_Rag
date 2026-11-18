@@ -1,19 +1,15 @@
-
 import logging
 import re
 from pathlib import Path
-
 from langchain_core.documents import Document
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def extract_text(markdown_files: list[Path]) -> list[Document]:
-
     documents = []
 
     for md_path in markdown_files:
-
         md_path = Path(md_path)
 
         if not md_path.exists():
@@ -26,7 +22,6 @@ def extract_text(markdown_files: list[Path]) -> list[Document]:
             continue
 
         year_match = re.search(r"20\d{2}", md_path.stem)
-
         year = year_match.group() if year_match else "unknown"
 
         document = Document(
@@ -39,7 +34,6 @@ def extract_text(markdown_files: list[Path]) -> list[Document]:
         )
 
         documents.append(document)
-
         logger.info("Extracted text: %s", md_path.name)
 
     if not documents:

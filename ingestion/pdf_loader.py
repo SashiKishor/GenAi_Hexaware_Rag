@@ -2,6 +2,7 @@ from pathlib import Path
 import logging
 from docling.document_converter import DocumentConverter
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ def load_pdfs():
         # Skip conversion if Markdown already exists
         if md_file.exists() and md_file.stat().st_size > 0:
             print(f"Already exists: {md_file.name}")
+            logger.info("Markdown already exists: %s", md_file.name)
             markdown_files.append(md_file)
             continue
 
@@ -35,6 +37,7 @@ def load_pdfs():
         md_file.write_text(markdown, encoding="utf-8")
 
         print(f"Converted: {pdf.name} -> {md_file.name}")
+        logger.info("PDF converted successfully: %s", md_file.name)
         markdown_files.append(md_file)
 
     if not markdown_files:
