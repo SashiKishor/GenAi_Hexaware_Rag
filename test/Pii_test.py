@@ -1,19 +1,32 @@
-from unittest.mock import patch, MagicMock
+import pytest
 from security.Pii_Redactor import PIIRedactor 
 
+@pytest.fixture(scope="module")
+def redactor():
+    return PIIRedactor()
 
-@patch("pii_redactor.AnonymizerEngine")
-@patch("pii_redactor.AnalyzerEngine")
-def test_redact_text(MockAnalyzer, MockAnonymizer):
-    # Arrange
-    redactor = PIIRedactor()
-    redactor.analyzer.analyze.return_value = ["fake_pii_match"]
-    redactor.anonymizer.anonymize.return_value = MagicMock(text="My name is Sashi And My account number is 021000021")
 
-    # Act
-    result = redactor.redact("My account is 1234567890")
+def test_redact_person_and_account_number(redactor):
+    text = "My name is Sashi And My account number is 021000021"
 
-    # Assert
-    assert result == "My name is <PERSON> And My account number is <ACCOUNT_NUMBER>"
-    redactor.analyzer.analyze.assert_called_once()
-    redactor.anonymizer.anonymize.assert_called_once()
+    result = redactor.redact(text)
+
+    assert "021000021" not in result
+    assert "<ACCOUNT_NUMBER>" in result
+    assert "Sashi" not in result
+    assert "<PERSON>" in result
+
+
+def test_redact_email_and_phone(redactor):
+    text = "Contact john.doe@example.com or 555-123-4567"
+
+    result = redactor.redact(text)
+
+    assert "john.doe@example.com" not in result
+    assert "<EMAIL_ADDRESS>" in result
+    assert "555-123-4567" not in result
+    assert "<PHONE_NUMBER>" in result
+
+
+def test_redact_empty_text(redactor):
+    assert redactor.redact("") == ""
