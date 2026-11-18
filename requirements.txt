@@ -8,3 +8,6 @@ Fastapi
 uvicorn
 jwt
 Bcrypt
+presidio-analyzer
+presidio-anonymizer
+spacy

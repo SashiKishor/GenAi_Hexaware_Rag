@@ -155,8 +155,6 @@ async def register_manager(
     }
 
 
-
-
 @app.get("/sessionId",
     tags=["Protected"],
 )
