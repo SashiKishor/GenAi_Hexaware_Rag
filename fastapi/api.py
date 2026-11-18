@@ -7,9 +7,17 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 #session id for tracing in langfuse
 import uuid
+import sys
+from pathlib import Path
 
+# Add project root to sys.path so we can import from the security package
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from models import User, Token, UserResponse
+from security.Pii_Redactor import PIIRedactor
+
+from models import User, Token, TokenData, AskRequest, AskResponse
 from jwt_utils import (
     verify_password,
     create_access_token,
@@ -20,8 +28,19 @@ from database import (
     create_user,
 )
 
+from functools import lru_cache
+
 # Initialize FastAPI application 
 app = FastAPI()
+
+# Cached singleton dependency: lazily initialized on first request
+@lru_cache()
+def get_redactor() -> PIIRedactor:
+    """
+    Cached singleton dependency for PII Redactor.
+    Initializes lazily only on the first request that calls for it.
+    """
+    return PIIRedactor()
 
 # Configure HTTPBearer security scheme for Swagger UI
 # This activates the "Authorize" button in Swagger UI (/docs)
@@ -33,10 +52,10 @@ security = HTTPBearer(
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> dict:
+) -> TokenData:
     """
     Dependency that extracts the Bearer token from the Authorization header,
-    verifies it using jwt_utils, and returns the decoded token payload claims.
+    verifies it using jwt_utils, and returns a validated TokenData object.
     """
     token = credentials.credentials
     try:
@@ -48,7 +67,11 @@ async def get_current_user(
                 detail="Token payload is missing user subject ('sub').",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return payload
+        return TokenData(
+            username=username,
+            role=payload.get("role"),
+            session_id=payload.get("session_id"),
+        )
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -64,11 +87,11 @@ async def get_current_user(
         )
 
 
-async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+async def require_admin(current_user: TokenData = Depends(get_current_user)) -> TokenData:
     """
     Enforces that the authenticated user has the 'admin' role.
     """
-    if current_user.get("role") != "admin":
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: Admin role required.",
@@ -136,7 +159,7 @@ async def register(user_credentials: User):
 )
 async def register_manager(
     user_credentials: User,
-    admin_user: dict = Depends(require_admin),
+    admin_user: TokenData = Depends(require_admin),
 ):
     existing_user = get_user_by_username(user_credentials.username)
     if existing_user:
@@ -155,10 +178,51 @@ async def register_manager(
     }
 
 
-@app.get("/sessionId",
+@app.get(
+    "/sessionId",
     tags=["Protected"],
 )
-async def get_users(current_user: dict = Depends(get_current_user)):
-    user_session_id = current_user.get("session_id")
-    return user_session_id
+async def get_session_id(current_user: TokenData = Depends(get_current_user)):
+    return {"session_id": current_user.session_id, "username": current_user.username, "role": current_user.role}
+
+
+@app.post(
+    "/ask",
+    response_model=AskResponse,
+    summary="Ask Question (RAG)",
+    tags=["RAG"],
+)
+async def ask_question(
+    request: AskRequest,
+    current_user: TokenData = Depends(get_current_user),
+    redactor: PIIRedactor = Depends(get_redactor),
+):
+    # 1. Redact PII before any logging or LLM call (F6)
+    safe_query = redactor.redact(request.query)
+
+    # 2. Call your RAG / LangGraph pipeline (replace with your actual function when built)
+    # Example:
+    # result = await run_rag_pipeline(
+    #     query=safe_query,
+    #     session_id=current_user.session_id,
+    #     role=current_user.role
+    # )
+    result = None
+
+    # 3. Safe fallback if no documents matched or pipeline is offline (F9)
+    if not result or not result.get("citations"):
+        return AskResponse(
+            answer="I cannot answer this based on Northbridge Bank's current verified documentation.",
+            citations=[],
+            effective_date=None,
+            is_superseded_warning=False,
+        )
+
+    # 4. Return the validated response (F1, F3, F5)
+    return AskResponse(
+        answer=result["answer"],
+        citations=result["citations"],
+        effective_date=result.get("effective_date"),
+        is_superseded_warning=result.get("is_superseded_warning", False),
+    )
 
