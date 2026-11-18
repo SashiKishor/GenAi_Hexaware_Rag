@@ -5,6 +5,7 @@ import unicodedata
 import html
 from langchain_core.documents import Document
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

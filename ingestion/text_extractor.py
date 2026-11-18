@@ -5,8 +5,8 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 def extract_text(markdown_files: list[Path]) -> list[Document]:
 
