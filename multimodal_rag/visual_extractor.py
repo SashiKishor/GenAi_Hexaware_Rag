@@ -36,6 +36,7 @@ class ExtractedVisual:
     image_path: Optional[str] = None
     table_markdown: Optional[str] = None
     caption: Optional[str] = None
+    headings: Optional[list[str]] = None
 
 
 class VisualExtractor:
@@ -137,18 +138,28 @@ class VisualExtractor:
         extracted_visuals = []
         table_index = picture_index = 0
 
+        current_headings: list[str] = []
+
         for item, _ in doc.iterate_items():
+            # Track section headers as Docling walks down the page
+            label = getattr(getattr(item, "label", None), "name", "")
+            if label in ("SECTION_HEADER", "TITLE") and getattr(item, "text", "").strip():
+                current_headings = [item.text.strip()]
+
             if isinstance(item, TableItem):
                 table_index += 1
                 visual = self._extract_table(item, doc, pdf_path.name, output_dir, table_index)
                 if visual:
+                    visual.headings = list(current_headings)
                     extracted_visuals.append(visual)
             elif isinstance(item, PictureItem):
                 picture_index += 1
                 visual = self._extract_picture(item, doc, pdf_path.name, output_dir, picture_index)
                 if visual:
+                    visual.headings = list(current_headings)
                     extracted_visuals.append(visual)
 
+        
         logger.info("Finished %s: %d tables, %d pictures", pdf_path.name, table_index, picture_index)
         return extracted_visuals
 

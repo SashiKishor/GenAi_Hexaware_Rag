@@ -289,9 +289,9 @@ class UnifiedRetriever:
                 status = meta.get("status")
                 status_score = 2.0 if status == "current" else -1.0 if status == "superseded" else 0.0
 
-                table_score = 2.0 if (query_numbers and ctype in {"table", "chart"}) else 0.0
-                visual_boost = 2.5 if meta.get("image_path") else 0.0
-                letter_penalty = -2.0 if ("dear " in content or "customer letter" in content) else 0.0
+            table_score = 2.0 if (query_numbers and ctype in {"table", "chart"}) else 0.0
+            visual_boost = 2.5 if meta.get("image_path") else 0.0
+            letter_penalty = -2.0 if ("dear " in content or "customer letter" in content) else 0.0
 
             total_score = (
                 lexical_score

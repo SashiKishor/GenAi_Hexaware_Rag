@@ -7,6 +7,7 @@ storing the unified corpus in ChromaDB.
 """
 
 
+import json
 import logging
 from pathlib import Path
 
@@ -68,15 +69,21 @@ class MultimodalIngestion:
             chunks = chunk_docling_document(
                 dl_doc=result.document,
                 source=pdf_path.name,
-                latest_year=latest_year
+                latest_year=latest_year,
             )
+            
+            # Keep only text chunks here; ingest_visuals() handles all tables with PNGs & numeric_facts
+            text_only = [c for c in chunks if c.metadata.get("content_type") != "table"]
+            for c in text_only:
+                headings = json.loads(c.metadata.get("headings", "[]"))
+                c.metadata["section"] = " > ".join(headings) if headings else ""
 
-            all_chunks.extend(chunks)
-            logger.info("%s produced %s chunks",pdf_path.name,len(chunks))
+            all_chunks.extend(text_only)
 
         if not all_chunks:
             raise ValueError("Docling did not generate any usable chunks.")
-            print_chunk_statistics(all_chunks)
+            
+        print_chunk_statistics(all_chunks)
 
         return all_chunks
 
@@ -133,6 +140,11 @@ class MultimodalIngestion:
                 logger.warning("Skipping empty visual: %s", visual.image_path)
                 continue
 
+            # --- NEW: Attach the active section header to both text content and metadata ---
+            section_title = " > ".join(visual.headings) if getattr(visual, "headings", None) else ""
+            if section_title:
+                content = f"SECTION: {section_title}\n\n{content}"
+
             detected_type = analysis.get("visual_type", "") if analysis else ""
             content_type = self._resolve_content_type(visual.content_type, detected_type)
 
@@ -147,6 +159,7 @@ class MultimodalIngestion:
                 numeric_facts=analysis.get("numeric_facts", []) if analysis else [],
                 visual_type=detected_type,
             )
+            metadata["section"] = section_title  # <--- NEW: Save section header for citations
             visual_documents.append(create_document(content=content, metadata=metadata))
 
         logger.info("Visual documents generated: %d", len(visual_documents))
