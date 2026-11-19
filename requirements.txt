@@ -22,3 +22,4 @@ langchain-core
 sentence-transformers
 torch
 pytest
+langchain_google_genai
