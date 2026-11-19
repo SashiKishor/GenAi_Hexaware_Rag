@@ -1,35 +1,23 @@
 
-from typing import List
-import logging
+import hashlib
+
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-logger = logging.getLogger(__name__)
-
 
 def split_documents(
-    documents: List[Document],
+    documents: list[Document],
     chunk_size: int = 1000,
     chunk_overlap: int = 150
-) -> List[Document]:
-
-    """
-    Split extracted documents into smaller chunks.
-
-    Args:
-        documents: List of LangChain Document objects.
-        chunk_size: Maximum characters in each chunk.
-        chunk_overlap: Overlapping characters between chunks.
-
-    Returns:
-        List of chunked LangChain Document objects.
-    """
+) -> list[Document]:
 
     if not documents:
         return []
 
     if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than zero")
+        raise ValueError(
+            "chunk_size must be greater than zero"
+        )
 
     if chunk_overlap < 0 or chunk_overlap >= chunk_size:
         raise ValueError(
@@ -46,11 +34,23 @@ def split_documents(
 
     chunks = text_splitter.split_documents(documents)
 
-    logger.info("Generated %d chunks from %d documents", len(chunks), len(documents))
-
     for index, chunk in enumerate(chunks):
+
         chunk.metadata["chunk_index"] = index
 
-    logger.info("Document chunking completed successfully.")
+        # Generate unique ID for the chunk
+        unique_text = (
+            f"{chunk.metadata.get('source', 'unknown')}_"
+            f"{chunk.metadata.get('version', 'unknown')}_"
+            f"{chunk.metadata.get('page', 'unknown')}_"
+            f"{chunk.metadata.get('start_index', index)}_"
+            f"{chunk.page_content}"
+        )
+
+        chunk_id = hashlib.sha256(
+            unique_text.encode("utf-8")
+        ).hexdigest()
+
+        chunk.metadata["chunk_id"] = chunk_id
 
     return chunks

@@ -1,0 +1,22 @@
+
+# LangChain core and document processing
+langchain-core
+langchain-text-splitters
+langchain-community
+
+# PDF extraction
+pypdf
+
+# Embeddings
+sentence-transformers
+langchain-huggingface
+
+# Vector database
+chromadb
+langchain-chroma
+
+# Other project dependencies
+python-dotenv
+rank-bm25
+langchain-openai
+langchain-classic
