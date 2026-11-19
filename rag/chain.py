@@ -217,13 +217,26 @@ def _date_spellings(d: date) -> list[str]:
     ]
 
 def _chunk_info(doc: Document) -> dict[str, Any]:
-    """One source, shaped like fastapi/models.py Citation (+ source_id, effective_date, image_path)."""
+    """One source, shaped like fastapi/models.py Citation (+ section header & image_path)."""
     m = doc.metadata
+    section = m.get("section") or ""
+    if not section and m.get("headings"):
+        try:
+            parsed = json.loads(m["headings"])
+            section = " > ".join(parsed) if isinstance(parsed, list) else str(parsed)
+        except Exception:
+            section = str(m["headings"])
+
+    page = m.get("page")
+    page_str = f"Page {page}" if page not in (None, "", -1) else "Unknown page"
+    location = f"{page_str} — {section}" if section else page_str
+
     return {
         "source_id": m["source_id"],
         "document_id": str(m.get("source", "Unknown document")),
         "version": str(m.get("version", "Unknown")),
-        "page_or_section": str(m.get("page") or m.get("section") or "Unknown"),
+        "page_or_section": location,
+        "section": section or "General",
         "status": str(m.get("status", "Unknown")).capitalize(),
         "effective_date": str(m.get("effective_date") or "Not available"),
         "content_type": str(m.get("content_type") or "text"),
