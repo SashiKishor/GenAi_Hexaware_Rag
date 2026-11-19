@@ -58,6 +58,6 @@ if __name__ == "__main__":
     print("Safe query result:", check_prompt_injection(safe_text))
 
     try:
-        check_prompt_injection(attack_text)
+        check_prompt_injection(safe_text)
     except GuardrailTripException as e:
         print("Attack blocked:", e)
