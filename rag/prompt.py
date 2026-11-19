@@ -49,7 +49,7 @@ def format_context(chunks: list) -> str:
         effective_date = metadata.get(
             "effective_date", "Not available"
         )
-        status = metadata.get("status", "Unknown")
+        status = metadata.get("version_status", "Unknown")
 
         formatted_text = f"""
 Source ID: [{source_id}]
