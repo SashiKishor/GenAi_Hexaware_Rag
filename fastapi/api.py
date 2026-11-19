@@ -2,13 +2,18 @@
 import jwt
 
 #fastapi imports
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status,Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from fastapi.responses import JSONResponse
 #session id for tracing in langfuse
 import uuid
+
 import sys
 from pathlib import Path
+import asyncio
+
+#Custom Exception
+from custom_exception import GuardrailTripException
 
 # Add project root to sys.path so we can import from the security package
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +37,29 @@ from functools import lru_cache
 
 # Initialize FastAPI application 
 app = FastAPI()
+
+# 1. Handles guardrail blocks (NeMo / Llama Guard)
+async def guardrail_handler(request: Request, exc: GuardrailTripException):
+    return JSONResponse(
+        status_code=200,
+        content={"success": False, "error_code": "GUARDRAIL_TRIP", "message": str(exc)}
+    )
+
+# 2. Handles LLM / Chroma timeouts
+@app.exception_handler(asyncio.TimeoutError)
+async def timeout_handler(request: Request, exc: asyncio.TimeoutError):
+    return JSONResponse(
+        status_code=504,
+        content={"success": False, "error_code": "TIMEOUT", "message": "Request timed out. Please try again."}
+    )
+
+# 3. Catch-all safety net (prevents any raw 500 crash from leaking)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error_code": "INTERNAL_ERROR", "message": "Something went wrong. Please contact support."}
+    )
 
 # Cached singleton dependency: lazily initialized on first request
 @lru_cache()
@@ -200,6 +228,8 @@ async def ask_question(
     # 1. Redact PII before any logging or LLM call (F6)
     safe_query = redactor.redact(request.query)
 
+    if "invest" in safe_query.lower():
+        raise GuardrailTripException("I cannot give investment advice. Please refer to a licensed advisor.")
     # 2. Call your RAG / LangGraph pipeline (replace with your actual function when built)
     # Example:
     # result = await run_rag_pipeline(
