@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from jwt_utils import hash_password
+from app.jwt_utils import hash_password
 
 # Database file location
 DB_PATH = Path(__file__).resolve().parent / "users.db"
@@ -137,11 +137,8 @@ def create_user(username: str, plain_password: str, role: str = "user") -> dict:
         conn.commit()
         user_id = cursor.lastrowid
 
-    # Append new user to user.txt
-    append_user_to_txt(username, plain_password, role)
 
     return {
-        "id": user_id,
         "username": username,
         "role": role,
     }

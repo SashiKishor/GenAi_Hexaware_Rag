@@ -13,22 +13,18 @@ from pathlib import Path
 import asyncio
 
 #Custom Exception
-from custom_exception import GuardrailTripException
-
-# Add project root to sys.path so we can import from the security package
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from app.custom_exception import GuardrailTripException
 
 from security.Pii_Redactor import PIIRedactor
 
-from models import User, Token, TokenData, AskRequest, AskResponse
-from jwt_utils import (
+from app.models import User, Token, TokenData, AskRequest, AskResponse
+
+from app.jwt_utils import (
     verify_password,
     create_access_token,
     decode_access_token,
 )
-from database import (
+from app.database import (
     get_user_by_username,
     create_user,
 )

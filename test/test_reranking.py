@@ -513,8 +513,10 @@ def corpus_chunks():
     pytest.importorskip("langchain_text_splitters")
     from ingestion.chunking import split_documents
     from ingestion.document_cleaner import clean_documents
-    from ingestion.text_extractor import extract_text
-    return split_documents(clean_documents(extract_text(sorted(PROCESSED.glob("*.md")))), 1000, 150)
+    from langchain_core.documents import Document
+    pages = [Document(page_content=p.read_text(encoding="utf-8"), metadata={"source": p.name})
+             for p in sorted(PROCESSED.glob("*.md"))]
+    return split_documents(clean_documents(pages), 1000, 150)
 
 
 @pytest.fixture(scope="module")
