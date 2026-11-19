@@ -196,12 +196,13 @@ class TestCatalog:
         c = chunk("fee", source="data/processed/pack_2026.md")
         assert two_pack_catalog().label([c])[0].metadata["version"] == "3.0"
 
-    def test_chunk_supplied_metadata_wins_and_partial_is_left_alone(self):
+    def test_chunk_supplied_metadata_wins_and_partial_is_replaced_by_catalog(self):
         complete = chunk("a", source="pack_2026.md", **meta("9", "2030-01-01", doc_id="Z"))
         partial = chunk("b", source="pack_2026.md", version="9.9")
         out = two_pack_catalog().label([complete, partial])
-        assert out[0].metadata["version"] == "9" and out[1].metadata["version"] == "9.9"
-        assert "effective_date" not in out[1].metadata        # never mixed with catalog values
+        assert out[0].metadata["version"] == "9"                       # complete chunk metadata wins
+        assert out[1].metadata["version"] == "3.0"                     # partial metadata is replaced by the catalog
+        assert out[1].metadata["version_metadata_origin"] == "catalog"       # filled by the catalog
 
     def test_versions_for_family(self):
         assert {m.version for m in two_pack_catalog().versions_for("pack")} == {"2.0", "3.0"}
@@ -645,8 +646,10 @@ def corpus_chunks():
     pytest.importorskip("langchain_text_splitters")
     from ingestion.chunking import split_documents
     from ingestion.document_cleaner import clean_documents
-    from ingestion.text_extractor import extract_text
-    return split_documents(clean_documents(extract_text(sorted(PROCESSED.glob("*.md")))), 1000, 150)
+    from langchain_core.documents import Document
+    pages = [Document(page_content=p.read_text(encoding="utf-8"), metadata={"source": p.name})
+             for p in sorted(PROCESSED.glob("*.md"))]
+    return split_documents(clean_documents(pages), 1000, 150)
 
 
 @pytest.fixture(scope="module")

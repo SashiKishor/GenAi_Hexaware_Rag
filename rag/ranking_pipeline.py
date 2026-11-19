@@ -76,7 +76,7 @@ def _dedupe(docs: list[Document]) -> list[Document]:
     seen: set[tuple[Any, Any, str]] = set()
     unique: list[Document] = []
     for doc in docs:
-        key = (doc.metadata.get("source"), doc.metadata.get("start_index"),
+        key = (Path(str(doc.metadata.get("source", ""))).stem,
                hashlib.sha256(doc.page_content.encode("utf-8")).hexdigest())
         if key not in seen:
             seen.add(key)
