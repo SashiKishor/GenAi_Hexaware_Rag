@@ -3,7 +3,7 @@
 #used for CI and filtering chunks for posoning
 
 from transformers import pipeline
-from fastapi.custom_exception import GuardrailTripException  # Change 'fastapi' if you rename that folder
+from app.custom_exception import GuardrailTripException  # Change 'fastapi' if you rename that folder
 
 # Load once at startup (cached locally after the first download)
 guard_pipeline = pipeline(
