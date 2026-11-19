@@ -3,7 +3,7 @@ import hashlib
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from ingestion.metadata_tagger import tag_chunks
 
 def split_documents(
     documents: list[Document],
@@ -52,5 +52,6 @@ def split_documents(
         ).hexdigest()
 
         chunk.metadata["chunk_id"] = chunk_id
+        tag_chunks(chunks)
 
     return chunks

@@ -13,3 +13,15 @@ Bcrypt
 presidio-analyzer
 presidio-anonymizer
 spacy
+transformers
+torch
+huggingface_hub
+safetensors
+
+langchain-core
+sentence-transformers
+torch
+pytest
+langchain_google_genai
+
+
