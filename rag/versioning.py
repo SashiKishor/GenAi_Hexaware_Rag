@@ -276,16 +276,20 @@ class VersionCatalog:
         return tuple(found)
 
     def label(self, docs: Sequence[Document]) -> list[Document]:
-        """Fill version fields on COPIES of chunks that have none. Chunk-supplied metadata always wins.
-
-        A chunk with PARTIAL version metadata is left alone (it will be UNRESOLVED) rather than
-        mixed with catalog values. Unknown ``source`` -> left unlabelled -> UNRESOLVED.
-        """
         out: list[Document] = []
         for doc in docs:
             md = doc.metadata
-            entry = self._entries.get(Path(str(md.get(KEY_SOURCE, ""))).name)
-            if entry is None or any(_clean(md.get(k)) for k in _VERSION_KEYS):
+            src = Path(str(md.get(KEY_SOURCE, "")))
+            entry = self._entries.get(src.name) or next(
+                (e for n, e in self._entries.items() if Path(n).stem == src.stem), None)
+            if entry is None:
+                out.append(doc)
+                continue
+            chunk_is_complete = (
+                _clean(md.get(KEY_VERSION)) and _clean(md.get(KEY_EFFECTIVE_DATE))
+                and (_clean(md.get(KEY_DOC_ID)) or _clean(md.get(KEY_FAMILY_ID)))
+            )
+            if chunk_is_complete:
                 out.append(doc)
                 continue
             out.append(doc.model_copy(update={"metadata": {**md, **entry, KEY_VERSION_ORIGIN: "catalog"}}))
