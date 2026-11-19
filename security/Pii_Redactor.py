@@ -6,10 +6,9 @@ class PIIRedactor:
         self.analyzer = AnalyzerEngine()
         self.anonymizer = AnonymizerEngine()
 
-        #Custom pattern for Bank Accounts
         account_pattern = Pattern(
             name="account_number_pattern",
-            regex=r"\b\d{8,12}\b",
+            regex=r"\b\d{8,18}\b",
             score=0.9
         )
         account_recognizer = PatternRecognizer(
@@ -19,11 +18,13 @@ class PIIRedactor:
         self.analyzer.registry.add_recognizer(account_recognizer)
 
         self.entities_to_redact = [
-            "PERSON", 
-            "PHONE_NUMBER",  
-            "EMAIL_ADDRESS", 
-            "LOCATION", 
-            "ACCOUNT_NUMBER" # Our custom entity(Account number)
+            "PERSON",
+            "PHONE_NUMBER",
+            "EMAIL_ADDRESS",
+            "CREDIT_CARD",
+            "IN_PAN",
+            "IN_AADHAAR",
+            "ACCOUNT_NUMBER"
         ]
 
     def redact(self, text: str) -> str:
@@ -33,12 +34,14 @@ class PIIRedactor:
         results = self.analyzer.analyze(
             text=text,
             entities=self.entities_to_redact,
-            language='en'
+            language="en"
         )
 
         anonymized_result = self.anonymizer.anonymize(
             text=text,
             analyzer_results=results
         )
-        
+
         return anonymized_result.text
+
+pii_redactor = PIIRedactor()
