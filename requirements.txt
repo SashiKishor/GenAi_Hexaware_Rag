@@ -17,3 +17,8 @@ transformers
 torch
 huggingface_hub
 safetensors
+
+langchain-core
+sentence-transformers
+torch
+pytest
