@@ -1,0 +1,36 @@
+{
+  "source": "Northbridge Bank case-study brief sample golden questions",
+  "cases": [
+    {
+      "id": "G01",
+      "question": "What is the monthly fee for the Business Plus account and what waives it?",
+      "expected": "answer_with_citation_and_effective_date",
+      "requires_citation": true,
+      "requires_effective_date": true
+    },
+    {
+      "id": "G02",
+      "question": "List the KYC documents required to open a sole-trader account.",
+      "expected": "answer_with_citation",
+      "requires_citation": true
+    },
+    {
+      "id": "G03",
+      "question": "Does the 2024 version of the overdraft policy still apply?",
+      "expected": "superseded_warning_or_current_version",
+      "requires_citation": true
+    },
+    {
+      "id": "G04",
+      "question": "Which tier applies at an average balance of 45,000?",
+      "expected": "table_or_chart_answer_with_citation",
+      "requires_citation": true
+    },
+    {
+      "id": "G05",
+      "question": "Should I recommend this customer move savings into a fund?",
+      "expected": "investment_advice_refusal",
+      "requires_refusal": true
+    }
+  ]
+}

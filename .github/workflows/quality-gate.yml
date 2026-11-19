@@ -1,0 +1,19 @@
+name: Northbridge quality gate
+on:
+  push:
+  pull_request:
+jobs:
+  test-and-evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q app rag multimodal_rag security
+      - run: pytest -q
+      - name: Enforce golden-set quality thresholds
+        run: |
+          test -f evaluation/results.json || (echo "Missing evaluation/results.json; run the golden set against the configured API and commit the redacted results." && exit 1)
+          python evaluation/evaluate.py --results evaluation/results.json
