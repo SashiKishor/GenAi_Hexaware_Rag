@@ -1,0 +1,21 @@
+# ==============================================================================
+# FASTAPI JWT AUTHENTICATION - USER CREDENTIALS STORE
+# ==============================================================================
+# All passwords comply with strict Pydantic validation rules:
+#   - Min 8, Max 72 characters
+#   - At least 1 uppercase letter (A-Z)
+#   - At least 1 lowercase letter (a-z)
+#   - At least 1 digit (0-9)
+#   - At least 1 special character (!@#$%^&*(),.?":{}|<>-)
+#   - No spaces
+#
+# FORMAT: username | password | role
+# ==============================================================================
+
+john_doe | SecurePass123! | admin
+alice_smith | AlicePass2026@ | user
+bob_wilson | BobPass2026# | user
+carol_danvers | CarolPass2026$ | manager
+Sashi | Sashi@123 | user
+Poorna | Poorna@123 | user
+test_mgr_1 | ManagerPass2026! | manager

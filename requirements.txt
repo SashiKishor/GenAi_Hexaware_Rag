@@ -1,0 +1,15 @@
+docling
+langchain-core
+langchain-community
+pypdf
+python-dotenv
+
+langchain_text_splitters
+
+Fastapi
+uvicorn
+jwt
+Bcrypt
+presidio-analyzer
+presidio-anonymizer
+spacy
