@@ -1,8 +1,18 @@
+
 import os
 import time
+import asyncio
+import logging
+from functools import lru_cache
+
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
+
 from security.Pii_Redactor import pii_redactor
+
+load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 class AdviceAndScopeDecision(BaseModel):
@@ -24,24 +34,46 @@ class InputGuardResult(BaseModel):
 ADVICE_REFUSAL_CHANNELS = {
     "investment": (
         "I cannot provide investment advice or fund recommendations. "
-        "Please refer this customer to the Northbridge Wealth & Investment Advisory Desk (ext. 4410)."
+        "Please refer this customer to the Northbridge Wealth & Investment "
+        "Advisory Desk (ext. 4410)."
     ),
     "tax": (
-        "I cannot provide tax advice. "
-        "Please refer this customer to Northbridge Tax & Fiduciary Advisory Services (ext. 4425)."
+        "I cannot provide tax advice. Please refer this customer to "
+        "Northbridge Tax & Fiduciary Advisory Services (ext. 4425)."
     ),
     "credit": (
         "I cannot make credit-approval or underwriting decisions. "
-        "Please submit the application to the Northbridge Credit Underwriting Team (ext. 4450)."
+        "Please submit the application to the Northbridge Credit "
+        "Underwriting Team (ext. 4450)."
     ),
 }
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+@lru_cache(maxsize=1)
 def _get_input_classifier():
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not configured.")
+
+    model_name = (
+        os.getenv("GEMINI_INPUT_GUARD_MODEL")
+        or os.getenv("GEMINI_CHAT_MODEL")
+        or "gemini-3.5-flash-lite"
+    )
+
+    logger.info("Initializing input guard model: %s", model_name)
+
     llm = ChatGoogleGenerativeAI(
-        model="gemini-3.8-flash",
+        model=model_name,
+        google_api_key=api_key,
         temperature=0,
-        google_api_key=os.getenv("GOOGLE_API_KEY"),
     )
 
     return llm.with_structured_output(AdviceAndScopeDecision)
@@ -59,20 +91,12 @@ async def run_input_guardrail(raw_query: str) -> InputGuardResult:
             latencies_ms=latencies,
         )
 
-    cleaned_query = raw_query.strip()
-
+    # Redact PII before sending the query to the classifier.
     t0 = time.perf_counter()
-
-    sanitized_query = pii_redactor.redact(cleaned_query)
-
+    sanitized_query = pii_redactor.redact(raw_query.strip())
     latencies["pii_redaction_ms"] = round(
-        (time.perf_counter() - t0) * 1000,
-        2
+        (time.perf_counter() - t0) * 1000, 2
     )
-
-    t1 = time.perf_counter()
-
-    classifier = _get_input_classifier()
 
     prompt = (
         "You are the security, compliance, and topical classifier for "
@@ -85,17 +109,62 @@ async def run_input_guardrail(raw_query: str) -> InputGuardResult:
         "tax advice, or credit approval and underwriting decisions.\n"
         "3. advice_category must be investment, tax, credit, or none.\n"
         "4. is_in_domain must be true only for Northbridge Bank products, "
-        "fees, account tiers, banking policies, KYC, AML, and compliance procedures.\n"
+        "fees, account tiers, banking policies, KYC, AML, and compliance "
+        "procedures.\n"
         "5. A normal question about banking information is safe and in-domain.\n"
         "6. Do not treat the presence of personal information alone as malicious.\n\n"
         f"User query:\n{sanitized_query}"
     )
 
-    decision: AdviceAndScopeDecision = await classifier.ainvoke(prompt)
+    t1 = time.perf_counter()
+
+    try:
+        classifier = _get_input_classifier()
+        timeout_seconds = _env_int("INPUT_GUARD_TIMEOUT_SECONDS", 30)
+
+        decision: AdviceAndScopeDecision = await asyncio.wait_for(
+            classifier.ainvoke(prompt),
+            timeout=timeout_seconds,
+        )
+
+    except asyncio.TimeoutError:
+        elapsed = round((time.perf_counter() - t1) * 1000, 2)
+        latencies["gemini_classifier_ms"] = elapsed
+        logger.warning(
+            "Input guard timed out after %.2f ms", elapsed
+        )
+        return InputGuardResult(
+            allowed=False,
+            sanitized_text=sanitized_query,
+            refusal_message=(
+                "The security check timed out. The request was not processed. "
+                "Please try again."
+            ),
+            tripped_layer="input_guard_timeout",
+            latencies_ms=latencies,
+        )
+
+    except Exception as exc:
+        elapsed = round((time.perf_counter() - t1) * 1000, 2)
+        latencies["gemini_classifier_ms"] = elapsed
+        logger.error(
+            "Input guard failed (%s) after %.2f ms",
+            type(exc).__name__,
+            elapsed,
+        )
+        return InputGuardResult(
+            allowed=False,
+            sanitized_text=sanitized_query,
+            refusal_message=(
+                "The security check is temporarily unavailable. "
+                "The request was not processed. Please try again."
+            ),
+            tripped_layer="input_guard_error",
+            latencies_ms=latencies,
+        )
 
     latencies["gemini_classifier_ms"] = round(
-        (time.perf_counter() - t1) * 1000,
-        2
+        (time.perf_counter() - t1) * 1000, 2
     )
 
     if not decision.is_safe:
@@ -111,13 +180,11 @@ async def run_input_guardrail(raw_query: str) -> InputGuardResult:
         )
 
     if decision.is_restricted_advice:
-        category = decision.advice_category.lower()
-
+        category = (decision.advice_category or "investment").lower()
         channel_message = ADVICE_REFUSAL_CHANNELS.get(
             category,
-            ADVICE_REFUSAL_CHANNELS["investment"]
+            ADVICE_REFUSAL_CHANNELS["investment"],
         )
-
         return InputGuardResult(
             allowed=False,
             sanitized_text=sanitized_query,

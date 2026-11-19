@@ -245,6 +245,7 @@ class UnifiedRetriever:
         available = current_years or all_years
         return max(available) if available else None
 
+        
     def rank_documents(
         self,
         documents: list[Document],
@@ -259,6 +260,7 @@ class UnifiedRetriever:
         latest_year = latest_year if latest_year is not None else self.resolve_latest_year(documents)
 
         scored_documents = []
+
         for doc in documents:
             meta = doc.metadata
             content = get_document_text(doc).lower()
@@ -289,9 +291,9 @@ class UnifiedRetriever:
                 status = meta.get("status")
                 status_score = 2.0 if status == "current" else -1.0 if status == "superseded" else 0.0
 
-                table_score = 2.0 if (query_numbers and ctype in {"table", "chart"}) else 0.0
-                visual_boost = 2.5 if meta.get("image_path") else 0.0
-                letter_penalty = -2.0 if ("dear " in content or "customer letter" in content) else 0.0
+            table_score = 2.0 if (query_numbers and ctype in {"table", "chart"}) else 0.0
+            visual_boost = 2.5 if meta.get("image_path") else 0.0
+            letter_penalty = -2.0 if ("dear " in content or "customer letter" in content) else 0.0
 
             total_score = (
                 lexical_score
@@ -305,7 +307,6 @@ class UnifiedRetriever:
                 + letter_penalty
             )
 
-
             meta["_rerank_score"] = round(total_score, 4)
             meta["_rerank_breakdown"] = {
                 "lexical": round(lexical_score, 2),
@@ -316,9 +317,14 @@ class UnifiedRetriever:
                 "status": status_score,
                 "table_chart": table_score,
             }
+
             scored_documents.append(doc)
 
-        return sorted(scored_documents, key=lambda d: d.metadata.get("_rerank_score", 0), reverse=True)
+        return sorted(
+            scored_documents,
+            key=lambda d: d.metadata.get("_rerank_score", 0),
+            reverse=True,
+        )
 
     def retrieve(self, query: str, k: Optional[int] = None) -> list[Document]:
         if not query or not query.strip():
