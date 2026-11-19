@@ -12,7 +12,7 @@ from rag.prompt import create_prompt, format_context
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_TIMEOUT_SECONDS = 30000
 
 # Flags that come from rag/ranking_pipeline.py and rag/versioning.py
 FLAG_NOT_FOUND = "not_found"
@@ -216,9 +216,8 @@ def _date_spellings(d: date) -> list[str]:
         f"{d.day} {d:%b %Y}",
     ]
 
-
-def _chunk_info(doc: Document) -> dict[str, str]:
-    """One source, shaped like fastapi/models.py Citation (+ source_id and effective_date)."""
+def _chunk_info(doc: Document) -> dict[str, Any]:
+    """One source, shaped like fastapi/models.py Citation (+ source_id, effective_date, image_path)."""
     m = doc.metadata
     return {
         "source_id": m["source_id"],
@@ -227,6 +226,8 @@ def _chunk_info(doc: Document) -> dict[str, str]:
         "page_or_section": str(m.get("page") or m.get("section") or "Unknown"),
         "status": str(m.get("status", "Unknown")).capitalize(),
         "effective_date": str(m.get("effective_date") or "Not available"),
+        "content_type": str(m.get("content_type") or "text"),
+        "image_path": str(m.get("image_path") or ""),
     }
 
 
