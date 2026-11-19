@@ -1,45 +1,82 @@
-from pathlib import Path
+
 import logging
-from docling.document_converter import DocumentConverter
+import re
+from pathlib import Path
+
+from pypdf import PdfReader
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s"
+)
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-RAW_DIR = PROJECT_ROOT / "data" / "raw"
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
 def load_pdfs():
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    converter = DocumentConverter()
+    if not RAW_DIR.exists():
+        raise FileNotFoundError(
+            f"PDF directory not found: {RAW_DIR}"
+        )
+
+    pdf_files = sorted(RAW_DIR.glob("*.pdf"))
+
+    if not pdf_files:
+        raise FileNotFoundError(
+            f"No PDF files found in: {RAW_DIR}"
+        )
+
     markdown_files = []
 
-    for pdf in RAW_DIR.glob("*.pdf"):
+    for pdf_path in pdf_files:
 
-        md_file = PROCESSED_DIR / f"{pdf.stem}.md"
+        logger.info("Reading PDF: %s", pdf_path.name)
 
-        # Skip conversion if Markdown already exists
-        if md_file.exists() and md_file.stat().st_size > 0:
-            print(f"Already exists: {md_file.name}")
-            logger.info("Markdown already exists: %s", md_file.name)
-            markdown_files.append(md_file)
-            continue
+        reader = PdfReader(str(pdf_path))
 
-        # Convert PDF to Markdown
-        result = converter.convert(str(pdf))
-        markdown = result.document.export_to_markdown()
+        markdown_content = []
+
+        for page_number, page in enumerate(
+            reader.pages, start=1
+        ):
+
+            page_text = page.extract_text() or ""
+
+            markdown_content.append(
+                f"<!-- PAGE_NUMBER: {page_number} -->\n"
+                f"{page_text}\n"
+            )
+
+        markdown = "\n".join(markdown_content)
 
         if not markdown.strip():
-            raise ValueError(f"No text extracted from {pdf.name}")
+            raise ValueError(
+                f"No text extracted from {pdf_path.name}"
+            )
 
-        md_file.write_text(markdown, encoding="utf-8")
+        md_file = PROCESSED_DIR / f"{pdf_path.stem}.md"
 
-        print(f"Converted: {pdf.name} -> {md_file.name}")
-        logger.info("PDF converted successfully: %s", md_file.name)
+        # Overwrite Markdown so changes to the PDF are reflected
+        md_file.write_text(
+            markdown,
+            encoding="utf-8"
+        )
+
+        logger.info(
+            "Converted %s into %s",
+            pdf_path.name,
+            md_file.name
+        )
+
         markdown_files.append(md_file)
-
-    if not markdown_files:
-        raise FileNotFoundError("No PDF or existing Markdown files found.")
 
     return markdown_files

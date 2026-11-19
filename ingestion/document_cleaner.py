@@ -1,10 +1,19 @@
+
 import logging
 import re
 import unicodedata
 import html
+
 from langchain_core.documents import Document
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s"
+)
+
 logger = logging.getLogger(__name__)
+
 
 def clean_text(text: str) -> str:
 
@@ -13,10 +22,13 @@ def clean_text(text: str) -> str:
 
     # Normalize Unicode
     text = unicodedata.normalize("NFKC", text)
+
+    # Convert HTML entities
     text = html.unescape(text)
 
     # Normalize line endings
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\r\n", "\n")
+    text = text.replace("\r", "\n")
 
     # Remove null characters
     text = text.replace("\x00", "")
@@ -38,9 +50,10 @@ def clean_text(text: str) -> str:
     text = text.replace("\t", " ")
     text = re.sub(r" {2,}", " ", text)
 
-    # Preserve Markdown headings and tables
+    # Preserve Markdown structure
     text = "\n".join(
-        line.strip() for line in text.splitlines()
+        line.strip()
+        for line in text.splitlines()
     )
 
     # Remove excessive blank lines
@@ -49,23 +62,36 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def clean_documents(documents: list[Document]) -> list[Document]:
+def clean_documents(
+    documents: list[Document]
+) -> list[Document]:
 
     cleaned_documents = []
+
     for document in documents:
-        cleaned_content = clean_text(document.page_content)
+
+        cleaned_content = clean_text(
+            document.page_content
+        )
 
         if not cleaned_content:
+
             logger.warning(
                 "Skipping empty document: %s",
                 document.metadata.get("source")
             )
+
             continue
 
         metadata = document.metadata.copy()
+
         metadata.update({
-            "original_character_count": len(document.page_content),
-            "cleaned_character_count": len(cleaned_content),
+            "original_character_count": len(
+                document.page_content
+            ),
+            "cleaned_character_count": len(
+                cleaned_content
+            ),
             "cleaning_applied": True
         })
 
@@ -77,7 +103,9 @@ def clean_documents(documents: list[Document]) -> list[Document]:
         )
 
     if not cleaned_documents:
-        raise ValueError("No usable documents after cleaning.")
+        raise ValueError(
+            "No usable documents after cleaning."
+        )
 
     logger.info(
         "Document cleaning completed: %d documents",
@@ -85,7 +113,3 @@ def clean_documents(documents: list[Document]) -> list[Document]:
     )
 
     return cleaned_documents
-
-
-
- 

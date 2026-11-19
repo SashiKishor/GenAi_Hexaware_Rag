@@ -1,6 +1,6 @@
 import re
 from pydantic import BaseModel, Field, field_validator
-
+from typing import List, Optional
 
 class User(BaseModel):
     username: str
@@ -44,10 +44,20 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
     role: str | None = None
+    session_id: str | None = None
 
 
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    role: str
-    created_at: str | None = None
+class AskRequest(BaseModel):
+    query: str = Field(..., min_length=3, max_length=1000)
+
+class Citation(BaseModel):
+    document_id: str
+    version: str
+    page_or_section: str
+    status: str  # "Current" or "Superseded"
+
+class AskResponse(BaseModel):
+    answer: str
+    citations: List[Citation] = Field(default_factory=list)
+    effective_date: Optional[str] = None
+    is_superseded_warning: bool = False
