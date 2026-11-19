@@ -2,20 +2,24 @@
 import jwt
 
 #fastapi imports
-from fastapi import FastAPI, Depends, HTTPException, status,Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 #session id for tracing in langfuse
 import uuid
 
+import os
+import logging
 import sys
 from pathlib import Path
 import asyncio
+from functools import lru_cache
 
 #Custom Exception
 from app.custom_exception import GuardrailTripException
 
 from security.Pii_Redactor import PIIRedactor
+from rag.chain import generate_answer
 
 from app.models import User, Token, TokenData, AskRequest, AskResponse
 
@@ -29,7 +33,7 @@ from app.database import (
     create_user,
 )
 
-from functools import lru_cache
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application 
 app = FastAPI()
@@ -65,6 +69,39 @@ def get_redactor() -> PIIRedactor:
     Initializes lazily only on the first request that calls for it.
     """
     return PIIRedactor()
+
+
+@lru_cache()
+def get_llm():
+    """
+    Returns an initialized LangChain ChatModel (Gemini or OpenAI).
+    """
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if google_api_key:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        model = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash")
+        return ChatGoogleGenerativeAI(model=model, google_api_key=google_api_key, temperature=0)
+
+
+    return None
+
+
+@lru_cache()
+def get_ranking_pipeline():
+    """
+    Returns the RankingPipeline using ChromaDB and Retriever if available.
+    """
+    try:
+        from vector_store.chroma_db import ChromaDB
+        from vector_store.retriever import Retriever
+        from rag.ranking_pipeline import build_ranking_pipeline
+
+        db = ChromaDB()
+        retriever = Retriever(db)
+        return build_ranking_pipeline(retriever)
+    except Exception as e:
+        logger.warning("Ranking pipeline could not be initialized: %s", e)
+        return None
 
 # Configure HTTPBearer security scheme for Swagger UI
 # This activates the "Authorize" button in Swagger UI (/docs)
@@ -220,34 +257,42 @@ async def ask_question(
     request: AskRequest,
     current_user: TokenData = Depends(get_current_user),
     redactor: PIIRedactor = Depends(get_redactor),
+    llm=Depends(get_llm),
+    ranking_pipeline=Depends(get_ranking_pipeline),
 ):
     # 1. Redact PII before any logging or LLM call (F6)
     safe_query = redactor.redact(request.query)
 
-    if "invest" in safe_query.lower():
-        raise GuardrailTripException("I cannot give investment advice. Please refer to a licensed advisor.")
-    # 2. Call your RAG / LangGraph pipeline (replace with your actual function when built)
-    # Example:
-    # result = await run_rag_pipeline(
-    #     query=safe_query,
-    #     session_id=current_user.session_id,
-    #     role=current_user.role
-    # )
-    result = None
+    # 2. Retrieve & rank documents using the ranking pipeline (if available)
+    ctx = None
+    if ranking_pipeline:
+        try:
+            ctx = ranking_pipeline.ask(safe_query)
+        except Exception as e:
+            logger.error("Ranking pipeline search failed: %s", e)
+            ctx = None
 
-    # 3. Safe fallback if no documents matched or pipeline is offline (F9)
-    if not result or not result.get("citations"):
+    # 3. If documents were found but LLM is not configured, fail safely
+    if ctx and hasattr(ctx, "answerable") and ctx.answerable and not llm:
         return AskResponse(
-            answer="I cannot answer this based on Northbridge Bank's current verified documentation.",
+            answer="I cannot answer this right now because the LLM service is not configured.",
             citations=[],
             effective_date=None,
             is_superseded_warning=False,
         )
 
-    # 4. Return the validated response (F1, F3, F5)
+    # 4. Generate answer via rag.chain.generate_answer
+    result = await generate_answer(
+        question=safe_query,
+        ctx=ctx,
+        llm=llm,
+        timeout_seconds=30,
+    )
+
+    # 5. Return the validated response (F1, F3, F5)
     return AskResponse(
         answer=result["answer"],
-        citations=result["citations"],
+        citations=result.get("citations", []),
         effective_date=result.get("effective_date"),
         is_superseded_warning=result.get("is_superseded_warning", False),
     )

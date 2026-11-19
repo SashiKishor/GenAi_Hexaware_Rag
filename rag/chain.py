@@ -12,7 +12,7 @@ from rag.prompt import create_prompt, format_context
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_TIMEOUT_SECONDS = 300000
 
 # Flags that come from rag/ranking_pipeline.py and rag/versioning.py
 FLAG_NOT_FOUND = "not_found"
